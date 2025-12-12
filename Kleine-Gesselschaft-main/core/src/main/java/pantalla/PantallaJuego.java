@@ -33,7 +33,7 @@ import com.badlogic.gdx.scenes.scene2d.InputEvent;
 
 import java.util.Iterator;
 import java.lang.reflect.Method;
-
+import utilidades.interfaces.GameController;
 import controles.ControlDelJuego;
 import entidades.Jugador;
 import entidades.EquipamentSlot; // *** NUEVO (para seed de ropa)
@@ -46,8 +46,9 @@ import utilidades.DebugOverlay;
 import utilidades.Tienda;
 import utilidades.MenuMinijuegos;
 import utilidades.items.ClothingItem; // *** NUEVO (para seed de ropa)
+import utilidades.network.ServerThread;
 
-public class PantallaJuego extends ScreenAdapter {
+public class PantallaJuego extends ScreenAdapter implements GameController {
 
     private OrthographicCamera camara;
     private ScreenViewport screenViewport;
@@ -69,7 +70,7 @@ public class PantallaJuego extends ScreenAdapter {
     private static final float SPAWN_INTERIOR_Y = 25f;
     private final Array<Rectangle> zonasTienda = new Array<>();
     private final Array<Rectangle> zonasMinijuegos = new Array<>();
-
+    
     private Jugador jugador;
     private ControlDelJuego manejo;
     private Colisiones colisiones;
@@ -95,7 +96,7 @@ public class PantallaJuego extends ScreenAdapter {
     private float fadeAlpha = 0f, fadeSpeed = 2.5f;
     private String pendingMap = null;
     private String pendingTrans = "none";
-
+    private ServerThread hiloServidor;
     private ShapeRenderer shape;
     private boolean spawnInicialHecho = false;
 
@@ -117,6 +118,7 @@ public class PantallaJuego extends ScreenAdapter {
 
         if (Render.batch == null) Render.batch = new SpriteBatch();
         shape = new ShapeRenderer();
+        this.hiloServidor = new ServerThread(this);
     }
 
     // ==== Helpers ====
@@ -358,6 +360,7 @@ public class PantallaJuego extends ScreenAdapter {
         }
 
         // Spawn inicial y movimiento bloqueado
+        this.hiloServidor.start();
         try { manejo.cancelarMovimiento(); } catch (Exception ignored) {}
         if (jugador != null) jugador.cancelarMovimiento();
         spawnInicialHecho = false;
@@ -860,5 +863,65 @@ public class PantallaJuego extends ScreenAdapter {
             EquipamentSlot.TORSO, "Ropa/Remeras", "remera_river", 1));
         j.equiparPrimeraRopaDisponible(); // usa la ropa de la mochila en vez de hardcodear
         Gdx.app.log("SEED", "Mochila poblada con " + j.getMochila().count() + " ítems.");
+    }
+
+    @Override
+    public void isGoal(int direction) {
+        // TODO Auto-generated method stub
+        throw new UnsupportedOperationException("Unimplemented method 'isGoal'");
+    }
+
+    @Override
+    public void connect(int numPlayer) {
+        // TODO Auto-generated method stub
+        throw new UnsupportedOperationException("Unimplemented method 'connect'");
+    }
+
+    @Override
+    public void start() {
+        // TODO Auto-generated method stub
+        throw new UnsupportedOperationException("Unimplemented method 'start'");
+    }
+
+    @Override
+    public void startGame() {
+        // TODO Auto-generated method stub
+        throw new UnsupportedOperationException("Unimplemented method 'startGame'");
+    }
+
+    @Override
+    public void updatePadPosition(int numPlayer, int y) {
+        // TODO Auto-generated method stub
+        throw new UnsupportedOperationException("Unimplemented method 'updatePadPosition'");
+    }
+
+    @Override
+    public void updateBallPosition(int x, int y) {
+        // TODO Auto-generated method stub
+        throw new UnsupportedOperationException("Unimplemented method 'updateBallPosition'");
+    }
+
+    @Override
+    public void updateScore(String score) {
+        // TODO Auto-generated method stub
+        throw new UnsupportedOperationException("Unimplemented method 'updateScore'");
+    }
+
+    @Override
+    public void endGame(int winner) {
+        // TODO Auto-generated method stub
+        throw new UnsupportedOperationException("Unimplemented method 'endGame'");
+    }
+
+    @Override
+    public void backToMenu() {
+        // TODO Auto-generated method stub
+        throw new UnsupportedOperationException("Unimplemented method 'backToMenu'");
+    }
+
+    @Override
+    public void move(int num, int int1) {
+        // TODO Auto-generated method stub
+        throw new UnsupportedOperationException("Unimplemented method 'move'");
     }
 }

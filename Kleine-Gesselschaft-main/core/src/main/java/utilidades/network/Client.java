@@ -1,4 +1,4 @@
-package com.heurix.network;
+package utilidades.network;
 
 import java.net.InetAddress;
 

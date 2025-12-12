@@ -1,4 +1,4 @@
-package com.heurix.interfaces;
+package utilidades.interfaces;
 
 public interface GameController {
     void isGoal(int direction);
@@ -6,6 +6,10 @@ public interface GameController {
     void connect(int numPlayer);
 
     void start();
+
+    void startGame();
+
+    
 
     void updatePadPosition(int numPlayer, int y);
 
@@ -16,4 +20,6 @@ public interface GameController {
     void endGame(int winner);
 
     void backToMenu();
+
+    void move(int num, int int1);
 }
