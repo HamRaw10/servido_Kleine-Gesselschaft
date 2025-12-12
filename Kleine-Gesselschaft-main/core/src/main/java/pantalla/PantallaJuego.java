@@ -47,6 +47,7 @@ import utilidades.Tienda;
 import utilidades.MenuMinijuegos;
 import utilidades.items.ClothingItem; // *** NUEVO (para seed de ropa)
 import utilidades.network.ServerThread;
+import utilidades.network.ClientNetwork;
 
 public class PantallaJuego extends ScreenAdapter implements GameController {
 
@@ -59,6 +60,7 @@ public class PantallaJuego extends ScreenAdapter implements GameController {
     private OrthogonalTiledMapRenderer mapRenderer;
     private int MAP_WIDTH, MAP_HEIGHT, TILE_SIZE_W, TILE_SIZE_H;
     private static final float UNIT_SCALE = 1f;
+    private static final boolean MODO_SOLO_SERVIDOR = true;
     private String mapaActualPath = null;
 
     private final Array<Portal> portales = new Array<>();
@@ -88,6 +90,12 @@ public class PantallaJuego extends ScreenAdapter implements GameController {
     private MenuMinijuegos menuMinijuegos;
     private boolean menuMinijuegosAbierto = false;
     private ScreenAdapter minijuegoActivo;
+    private boolean servidorIniciado = false;
+    private ClientNetwork clienteNetwork;
+    private Jugador jugadorRemoto;
+    private int idJugadorLocal = -1;
+    private float tiempoDesdeUltimoEnvio = 0f;
+    private final Vector2 ultimaPosEnviada = new Vector2();
 
 
     // Transiciones
@@ -119,6 +127,48 @@ public class PantallaJuego extends ScreenAdapter implements GameController {
         if (Render.batch == null) Render.batch = new SpriteBatch();
         shape = new ShapeRenderer();
         this.hiloServidor = new ServerThread(this);
+    }
+
+    private void iniciarServidorSiNoEsta() {
+        if (servidorIniciado) return;
+        if (hiloServidor != null) {
+            try {
+                hiloServidor.start();
+                servidorIniciado = true;
+            } catch (IllegalThreadStateException ignored) { }
+        }
+    }
+
+    private void iniciarClienteRed() {
+        if (clienteNetwork != null) return;
+        String host = System.getProperty("kg.server.host", "localhost");
+        try {
+            clienteNetwork = new ClientNetwork(this, host, 5555);
+            clienteNetwork.start();
+            clienteNetwork.sendConnect();
+        } catch (Exception e) {
+            Gdx.app.error("NET", "No se pudo iniciar cliente", e);
+        }
+    }
+
+    private void asegurarJugadorRemoto() {
+        if (MODO_SOLO_SERVIDOR) return;
+        if (jugadorRemoto == null) {
+            jugadorRemoto = new Jugador(colisiones);
+            jugadorRemoto.setColisiones(colisiones);
+        }
+    }
+
+    private void enviarPosicion(float delta) {
+        if (clienteNetwork == null || jugador == null) return;
+        tiempoDesdeUltimoEnvio += delta;
+        float cx = jugador.getCentroX();
+        float cy = jugador.getCentroY();
+        if (tiempoDesdeUltimoEnvio >= 0.05f || ultimaPosEnviada.dst2(cx, cy) > 1f) {
+            clienteNetwork.sendMove(cx, cy);
+            ultimaPosEnviada.set(cx, cy);
+            tiempoDesdeUltimoEnvio = 0f;
+        }
     }
 
     // ==== Helpers ====
@@ -303,6 +353,12 @@ public class PantallaJuego extends ScreenAdapter implements GameController {
     // ==== Ciclo de vida ====
     @Override
     public void show() {
+        iniciarServidorSiNoEsta();
+        iniciarClienteRed();
+        if (MODO_SOLO_SERVIDOR) {
+            return; // nada visual, solo servidor
+        }
+
         debugOverlay = new DebugOverlay();
         cargarMapaPorRuta(MAPA_INICIAL);
 
@@ -360,7 +416,6 @@ public class PantallaJuego extends ScreenAdapter implements GameController {
         }
 
         // Spawn inicial y movimiento bloqueado
-        this.hiloServidor.start();
         try { manejo.cancelarMovimiento(); } catch (Exception ignored) {}
         if (jugador != null) jugador.cancelarMovimiento();
         spawnInicialHecho = false;
@@ -641,6 +696,11 @@ public class PantallaJuego extends ScreenAdapter implements GameController {
 
     // ==== Render ====
     @Override public void render(float delta) {
+        if (MODO_SOLO_SERVIDOR) {
+            Gdx.gl.glClearColor(0,0,0,1);
+            Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT);
+            return;
+        }
         Gdx.gl.glClearColor(0,0,0,1);
         Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT);
 
@@ -667,6 +727,7 @@ public class PantallaJuego extends ScreenAdapter implements GameController {
         }
 
         manejo.actualizar(delta);
+        enviarPosicion(delta);
 
         // Si el jugador aparece post-update, hacer spawn ahora
         if (jugador == null) {
@@ -715,6 +776,7 @@ public class PantallaJuego extends ScreenAdapter implements GameController {
         Render.batch.setProjectionMatrix(camara.combined);
         Render.batch.begin();
         manejo.render(Render.batch);
+        if (jugadorRemoto != null) jugadorRemoto.render(Render.batch);
         Render.batch.end();
 
         mapRenderer.render(toIntArray(arriba)); // techos / carteles
@@ -818,6 +880,8 @@ public class PantallaJuego extends ScreenAdapter implements GameController {
         if (debugOverlay != null) debugOverlay.dispose();
         if (menuMinijuegos != null) menuMinijuegos.dispose();
         if (minijuegoActivo != null) minijuegoActivo.dispose();
+        if (clienteNetwork != null) clienteNetwork.shutdown();
+        if (hiloServidor != null) hiloServidor.terminate();
     }
 
     private String areaActual = null;
@@ -867,61 +931,57 @@ public class PantallaJuego extends ScreenAdapter implements GameController {
 
     @Override
     public void isGoal(int direction) {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'isGoal'");
+        // no usado
     }
 
     @Override
     public void connect(int numPlayer) {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'connect'");
+        this.idJugadorLocal = numPlayer;
     }
 
     @Override
     public void start() {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'start'");
+        // no usado
     }
 
     @Override
     public void startGame() {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'startGame'");
+        if (MODO_SOLO_SERVIDOR) return;
+        Gdx.app.postRunnable(this::asegurarJugadorRemoto);
     }
 
     @Override
     public void updatePadPosition(int numPlayer, int y) {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'updatePadPosition'");
+        // sin lógica en modo solo servidor
     }
 
     @Override
     public void updateBallPosition(int x, int y) {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'updateBallPosition'");
+        // sin lógica en modo solo servidor
     }
 
     @Override
     public void updateScore(String score) {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'updateScore'");
+        // sin lógica en modo solo servidor
     }
 
     @Override
     public void endGame(int winner) {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'endGame'");
+        // sin lógica en modo solo servidor
     }
 
     @Override
     public void backToMenu() {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'backToMenu'");
+        // sin lógica en modo solo servidor
     }
 
     @Override
-    public void move(int num, int int1) {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'move'");
+    public void move(int playerId, float x, float y) {
+        if (MODO_SOLO_SERVIDOR) return;
+        Gdx.app.postRunnable(() -> {
+            if (playerId == idJugadorLocal) return;
+            asegurarJugadorRemoto();
+            if (jugadorRemoto != null) jugadorRemoto.aplicarPosicionRemota(x, y);
+        });
     }
 }

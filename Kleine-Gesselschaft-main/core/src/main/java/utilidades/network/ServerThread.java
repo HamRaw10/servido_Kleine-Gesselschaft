@@ -4,29 +4,36 @@ import utilidades.interfaces.GameController;
 
 import java.io.IOException;
 import java.net.*;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Map;
 
 public class ServerThread extends Thread {
 
     private DatagramSocket socket;
     private int serverPort = 5555;
     private boolean end = false;
-    private final int MAX_CLIENTS = 2;
+    private final int MAX_CLIENTS = 3;
     private int connectedClients = 0;
     private ArrayList<Client> clients = new ArrayList<Client>();
     private GameController gameController;
+    private boolean ready = false;
+    private final Map<Integer, float[]> positions = new HashMap<>();
 
     public ServerThread(GameController gameController) {
         this.gameController = gameController;
         try {
             socket = new DatagramSocket(serverPort);
+            ready = true;
         } catch (SocketException e) {
-//            throw new RuntimeException(e);
+            ready = false;
         }
     }
 
     @Override
     public void run() {
+        if (!ready || socket == null || socket.isClosed()) return;
         do {
             DatagramPacket packet = new DatagramPacket(new byte[1024], 1024);
             try {
@@ -39,7 +46,7 @@ public class ServerThread extends Thread {
     }
 
     private void processMessage(DatagramPacket packet) {
-        String message = (new String(packet.getData())).trim();
+        String message = new String(packet.getData(), 0, packet.getLength(), StandardCharsets.UTF_8).trim();
         String[] parts = message.split(":");
         int index = findClientIndex(packet);
         System.out.println("Mensaje recibido " + message);
@@ -57,6 +64,11 @@ public class ServerThread extends Thread {
                 Client newClient = new Client(connectedClients, packet.getAddress(), packet.getPort());
                 clients.add(newClient);
                 sendMessage("Connected:"+connectedClients, packet.getAddress(), packet.getPort());
+                // Enviar posiciones conocidas al nuevo
+                for (Map.Entry<Integer, float[]> entry : positions.entrySet()) {
+                    float[] pos = entry.getValue();
+                    sendMessage("Move:"+entry.getKey()+":"+pos[0]+":"+pos[1], packet.getAddress(), packet.getPort());
+                }
 
                 if(connectedClients == MAX_CLIENTS) {
                     for(Client client : clients) {
@@ -76,7 +88,13 @@ public class ServerThread extends Thread {
             Client client = clients.get(index);
             switch(parts[0]){
                 case "Move":
-                    gameController.move(client.getNum(), Integer.parseInt(parts[1]));
+                    if (parts.length >= 3) {
+                        float x = Float.parseFloat(parts[1]);
+                        float y = Float.parseFloat(parts[2]);
+                        positions.put(client.getNum(), new float[]{x, y});
+                        gameController.move(client.getNum(), x, y);
+                        sendMessageToAll("Move:"+client.getNum()+":"+x+":"+y);
+                    }
                     break;
             }
         }
@@ -109,7 +127,7 @@ public class ServerThread extends Thread {
 
     public void terminate(){
         this.end = true;
-        socket.close();
+        if (socket != null && !socket.isClosed()) socket.close();
         this.interrupt();
     }
 
@@ -125,5 +143,9 @@ public class ServerThread extends Thread {
         }
         this.clients.clear();
         this.connectedClients = 0;
+    }
+
+    public boolean isReady() {
+        return ready;
     }
 }

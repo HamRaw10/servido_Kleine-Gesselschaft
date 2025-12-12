@@ -21,5 +21,5 @@ public interface GameController {
 
     void backToMenu();
 
-    void move(int num, int int1);
+    void move(int playerId, float x, float y);
 }

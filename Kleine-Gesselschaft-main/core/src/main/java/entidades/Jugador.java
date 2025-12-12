@@ -325,6 +325,21 @@ public class Jugador extends Personaje {
         return hitbox.height;
     }
 
+    public float getCentroX() {
+        return personajeX;
+    }
+
+    public float getCentroY() {
+        return personajeY;
+    }
+
+    public void aplicarPosicionRemota(float cx, float cy) {
+        setPos(cx, cy);
+        velocidadX = 0f;
+        velocidadY = 0f;
+        estaEnMovimiento = false;
+    }
+
 
     public void setBloqueado(boolean b) {
         bloqueado = b;
