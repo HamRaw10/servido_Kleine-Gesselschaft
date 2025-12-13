@@ -48,6 +48,7 @@ import utilidades.MenuMinijuegos;
 import utilidades.items.ClothingItem; // *** NUEVO (para seed de ropa)
 import utilidades.network.ServerThread;
 import utilidades.network.ClientNetwork;
+import utilidades.interfaces.ChatListener;
 
 public class PantallaJuego extends ScreenAdapter implements GameController {
 
@@ -384,7 +385,11 @@ public class PantallaJuego extends ScreenAdapter implements GameController {
 
         // Chat e Inventario
         if (jugador != null && skinUI != null) {
-            chat = new Chat(skinUI, jugador, camara);
+            chat = new Chat(skinUI, jugador, camara, mensaje -> {
+                if (clienteNetwork != null) {
+                    clienteNetwork.sendChat(mensaje);
+                }
+            });
             inventario = new Inventario(stageInventario, skinUI, jugador); // ← firma correcta
             tiendaHippie = Tienda.crearTiendaHippie();
         }
@@ -733,7 +738,11 @@ public class PantallaJuego extends ScreenAdapter implements GameController {
         if (jugador == null) {
             jugador = manejo.getJugador();
             if (jugador != null && chat == null && skinUI != null) {
-                chat = new Chat(skinUI, jugador, camara);
+                chat = new Chat(skinUI, jugador, camara, mensaje -> {
+                    if (clienteNetwork != null) {
+                        clienteNetwork.sendChat(mensaje);
+                    }
+                });
                 inventario = new Inventario(stageInventario, skinUI, jugador);
                 tiendaHippie = Tienda.crearTiendaHippie();
             }
@@ -982,6 +991,22 @@ public class PantallaJuego extends ScreenAdapter implements GameController {
             if (playerId == idJugadorLocal) return;
             asegurarJugadorRemoto();
             if (jugadorRemoto != null) jugadorRemoto.aplicarPosicionRemota(x, y);
+        });
+    }
+
+    @Override
+    public void updateChatMessage(int playerId, String message) {
+        if (MODO_SOLO_SERVIDOR) return;
+        Gdx.app.postRunnable(() -> {
+            if (chat == null || message == null || message.isEmpty()) return;
+            Jugador target = (playerId == idJugadorLocal) ? jugador : jugadorRemoto;
+            if (target == null && playerId != idJugadorLocal) {
+                asegurarJugadorRemoto();
+                target = jugadorRemoto;
+            }
+            if (target != null) {
+                chat.showMessage(target, message);
+            }
         });
     }
 }

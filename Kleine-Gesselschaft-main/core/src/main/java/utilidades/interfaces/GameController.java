@@ -22,4 +22,6 @@ public interface GameController {
     void backToMenu();
 
     void move(int playerId, float x, float y);
+
+    void updateChatMessage(int playerId, String message);
 }

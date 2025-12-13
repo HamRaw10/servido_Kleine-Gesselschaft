@@ -70,6 +70,16 @@ public class ClientNetwork extends Thread {
                     controller.move(pid, x, y);
                 }
                 break;
+            case "Chat":
+                // Formato: Chat:<id>:<texto>
+                if (parts.length >= 3) {
+                    try {
+                        int pid = Integer.parseInt(parts[1]);
+                        String texto = msg.substring(msg.indexOf(':', msg.indexOf(':') + 1) + 1);
+                        controller.updateChatMessage(pid, texto);
+                    } catch (Exception ignored) {}
+                }
+                break;
             case "Disconnect":
                 controller.backToMenu();
                 break;
@@ -85,6 +95,12 @@ public class ClientNetwork extends Thread {
     public void sendMove(float x, float y) {
         if (!connected) return;
         send("Move:" + x + ":" + y);
+    }
+
+    public void sendChat(String text) {
+        if (!connected) return;
+        if (text == null || text.trim().isEmpty()) return;
+        send("Chat:" + text.trim());
     }
 
     private void send(String msg) {

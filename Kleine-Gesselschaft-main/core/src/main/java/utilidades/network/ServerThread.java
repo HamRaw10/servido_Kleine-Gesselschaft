@@ -96,6 +96,16 @@ public class ServerThread extends Thread {
                         sendMessageToAll("Move:"+client.getNum()+":"+x+":"+y);
                     }
                     break;
+                case "Chat":
+                    String text = "";
+                    int colon = message.indexOf(':');
+                    if (colon != -1 && colon + 1 < message.length()) {
+                        text = message.substring(colon + 1).replace("\n"," ").replace("\r"," ").trim();
+                    }
+                    if (!text.isEmpty()) {
+                        sendMessageToAll("Chat:"+client.getNum()+":"+text);
+                    }
+                    break;
             }
         }
     }
