@@ -14,6 +14,7 @@ public class ServerThread extends Thread {
     private DatagramSocket socket;
     private int serverPort = 5555;
     private boolean end = false;
+    private static final long CLIENT_TIMEOUT_MS = 7000L;
     private final int MAX_CLIENTS = 3;
     private int connectedClients = 0;
     private ArrayList<Client> clients = new ArrayList<Client>();
@@ -25,6 +26,7 @@ public class ServerThread extends Thread {
         this.gameController = gameController;
         try {
             socket = new DatagramSocket(serverPort);
+            socket.setSoTimeout(250);
             ready = true;
         } catch (SocketException e) {
             ready = false;
@@ -39,6 +41,9 @@ public class ServerThread extends Thread {
             try {
                 socket.receive(packet);
                 processMessage(packet);
+                pruneInactiveClients();
+            } catch (SocketTimeoutException ignored) {
+                pruneInactiveClients();
             } catch (IOException e) {
 //                throw new RuntimeException(e);
             }
@@ -86,6 +91,7 @@ public class ServerThread extends Thread {
             return;
         } else {
             Client client = clients.get(index);
+            client.touch();
             switch(parts[0]){
                 case "Move":
                     if (parts.length >= 3) {
@@ -106,6 +112,26 @@ public class ServerThread extends Thread {
                         sendMessageToAll("Chat:"+client.getNum()+":"+text);
                     }
                     break;
+                case "Disconnect":
+                    clients.remove(index);
+                    connectedClients = Math.max(0, connectedClients - 1);
+                    positions.remove(client.getNum());
+                    sendMessageToAll("PlayerLeft:" + client.getNum());
+                    break;
+            }
+        }
+    }
+
+    private void pruneInactiveClients() {
+        if (clients.isEmpty()) return;
+        long now = System.currentTimeMillis();
+        for (int i = clients.size() - 1; i >= 0; i--) {
+            Client client = clients.get(i);
+            if (now - client.getLastSeenMs() > CLIENT_TIMEOUT_MS) {
+                clients.remove(i);
+                connectedClients = Math.max(0, connectedClients - 1);
+                positions.remove(client.getNum());
+                sendMessageToAll("PlayerLeft:" + client.getNum());
             }
         }
     }

@@ -8,12 +8,14 @@ public class Client {
     private int num;
     private InetAddress ip;
     private int port;
+    private volatile long lastSeenMs = System.currentTimeMillis();
 
     public Client(int num, InetAddress ip, int port) {
         this.num = num;
         this.id = ip.toString() + ":" + port;
         this.ip = ip;
         this.port = port;
+        this.lastSeenMs = System.currentTimeMillis();
     }
 
     public String getId() {
@@ -30,5 +32,13 @@ public class Client {
 
     public int getNum() {
         return num;
+    }
+
+    public long getLastSeenMs() {
+        return lastSeenMs;
+    }
+
+    public void touch() {
+        lastSeenMs = System.currentTimeMillis();
     }
 }
