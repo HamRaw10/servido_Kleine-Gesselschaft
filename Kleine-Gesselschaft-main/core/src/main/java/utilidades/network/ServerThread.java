@@ -56,6 +56,11 @@ public class ServerThread extends Thread {
         int index = findClientIndex(packet);
         System.out.println("Mensaje recibido " + message);
 
+        if ("DiscoverServer".equalsIgnoreCase(parts[0])) {
+            sendMessage("ServerHere:" + serverPort, packet.getAddress(), packet.getPort());
+            return;
+        }
+
         if(parts[0].equals("Connect")){
 
             if(index != -1) {
